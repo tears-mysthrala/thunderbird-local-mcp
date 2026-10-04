@@ -1,0 +1,12 @@
+node_modules/
+runtime/
+*.sqlite*
+dist/*
+!dist/.gitkeep
+
+extension/config.js
+extension/manifest.json
+native/__pycache__/
+review-*.json
+review-*.md
+docs/workflows/implementation/runs/
