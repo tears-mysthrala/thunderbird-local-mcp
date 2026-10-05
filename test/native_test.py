@@ -44,4 +44,22 @@ class NativeTests(unittest.TestCase):
    self.assertEqual(db.execute('SELECT state FROM actions').fetchone()[0],'completed')
    self.assertEqual(broker.request(req)['error']['code'],'LOCAL_APPROVAL_REQUIRED')
    db.close()
+ def test_draft_without_console_still_binds_hash_epoch_and_consumes_once(self):
+  with tempfile.TemporaryDirectory() as directory:
+   path=str(pathlib.Path(directory)/'a.sqlite')
+   db=sqlite3.connect(path);db.execute('CREATE TABLE actions(id TEXT PRIMARY KEY,profile TEXT,content TEXT,hash TEXT,state TEXT,until INTEGER,result TEXT)')
+   content=json.dumps({'kind':'save_draft','epoch':'e'});digest=hashlib.sha256(content.encode()).hexdigest()
+   db.execute('INSERT INTO actions VALUES(?,?,?,?,?,?,?)',('a','p',content,digest,'planned',None,None));db.commit()
+   output=io.BytesIO();broker=Broker({'profileId':'p','database':path},output);broker.accept_native({'type':'hello','profileId':'p','epoch':'e'})
+   req={'profileId':'p','method':'apply_action','params':{'id':'a','hash':digest}}
+   self.assertEqual(broker.request(dict(req,params={'id':'a','hash':'wrong'}))['error']['code'],'LOCAL_APPROVAL_REQUIRED')
+   broker.epoch='old';self.assertEqual(broker.request(req)['error']['code'],'STALE_REFERENCE');broker.epoch='e'
+   def respond():
+    for _ in range(100):
+     raw=output.getvalue()
+     if raw:
+      message=receive(io.BytesIO(raw).read);broker.accept_native({'id':message['id'],'result':{'sent':False}});return
+     time.sleep(.01)
+   worker=threading.Thread(target=respond);worker.start();self.assertFalse(broker.request(req)['result']['sent']);worker.join()
+   self.assertEqual(broker.request(req)['error']['code'],'LOCAL_APPROVAL_REQUIRED');db.close()
 if __name__=='__main__':unittest.main()

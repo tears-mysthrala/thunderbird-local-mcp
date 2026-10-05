@@ -28,7 +28,7 @@ Lectura: estado, cuentas/identidades, carpetas y contadores, búsqueda y continu
 
 Escritura: preparar borrador/respuesta/reenvío de texto, importación EML hasta 512 KiB, flags/etiquetas/junk, mover/copiar/archivar, papelera explícita y crear/renombrar/eliminar carpetas. Solo se eliminan carpetas normales vacías sin subcarpetas; se protegen carpetas especiales. Mover puede convertirse en copiar según el proveedor: se informa presencia del origen y no se declara entrega/sincronización completa. Reenvío inicial sin adjuntos. Junk no demuestra entrenamiento del filtro.
 
-Los planes se guardan en SQLite propio, ligados a hash, perfil y epoch. No hay herramienta de aprobación. En una consola independiente:
+Los planes se guardan en SQLite propio, ligados a hash, perfil y epoch. Guardar borradores no requiere aprobación por terminal; nunca envía. El resto de acciones sí requiere aprobación. No hay herramienta MCP de aprobación. En una consola independiente:
 
 ```powershell
 cd RUTA_DEL_PROYECTO

@@ -148,9 +148,12 @@ class Broker:
                 # BEGIN IMMEDIATE serializes approval read/check/claim across all connections.
                 db.execute('BEGIN IMMEDIATE')
                 row = db.execute('SELECT content,hash,state,until FROM actions WHERE id=? AND profile=?',(params.get('id'),self.config['profileId'])).fetchone()
-                if not row or row[2]!='planned' or not row[3] or row[3] <= int(time.time()*1000) or row[1]!=params.get('hash'):
+                if not row or row[2]!='planned' or row[1]!=params.get('hash'):
                     return {'error': {'code':'LOCAL_APPROVAL_REQUIRED','message':'Sin aprobacion local'}}
                 action = json.loads(row[0])
+                # Draft-only operations never send; organization/import still require console approval.
+                if action.get('kind') != 'save_draft' and (not row[3] or row[3] <= int(time.time()*1000)):
+                    return {'error': {'code':'LOCAL_APPROVAL_REQUIRED','message':'Sin aprobacion local'}}
                 if action.get('epoch')!=self.epoch or hashlib.sha256(row[0].encode()).hexdigest()!=row[1]:
                     return {'error': {'code':'STALE_REFERENCE','message':'Operacion obsoleta'}}
                 claimed=db.execute("UPDATE actions SET state='executing',until=NULL WHERE id=? AND state='planned' AND hash=?",(params['id'],row[1])).rowcount
