@@ -3,9 +3,9 @@
     "thunderbird-mcp-602245003fbf4e8abe90e7ab092cb2a0@mkdl.local": {
       "updates": [
         {
-          "version": "0.1.2",
-          "update_link": "https://github.com/tears-mysthrala/thunderbird-local-mcp/releases/download/v0.1.2/thunderbird-local-mcp-0.1.2.xpi",
-          "update_hash": "sha256:2881ba647bdecbd7b8b0bcfccd649d8b3ad145c4837ceed6d0c66a8db37f7eba",
+          "version": "0.1.3",
+          "update_link": "https://github.com/tears-mysthrala/thunderbird-local-mcp/releases/download/v0.1.3/thunderbird-local-mcp-0.1.3.xpi",
+          "update_hash": "sha256:bf841f86f382e6c6a8cc270d71cb6c4bb68e329f6f928cd9062c21108b110754",
           "applications": {
             "gecko": {
               "strict_min_version": "147.0"
