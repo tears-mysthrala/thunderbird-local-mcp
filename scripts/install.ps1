@@ -25,7 +25,7 @@ if ($config.extensionId -ne "thunderbird-mcp-$installationToken@mkdl.local" -or 
 if ($AccountIds -and (Compare-Object $AccountIds $config.accountIds)) { throw 'No cambiar scope durante reinstalacion' }
 $config.hostName='mkdl.thunderbird.local'
 $config | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $configFile -Encoding utf8
-$manifest = [ordered]@{manifest_version=3;name='Thunderbird Local Private MCP';version='0.1.2';description='Local MCP: lectura y acciones aprobadas. Sin envio.';browser_specific_settings=@{gecko=@{id=$config.extensionId;strict_min_version='147.0';update_url='https://raw.githubusercontent.com/tears-mysthrala/thunderbird-local-mcp/main/updates.json'}};background=@{page='background.html'};permissions=@('nativeMessaging','accountsRead','accountsFolders','messagesRead','messagesImport','messagesUpdate','messagesMove','messagesTagsList','addressBooks','compose','compose.save')}
+$manifest = [ordered]@{manifest_version=3;name='Thunderbird Local Private MCP';version='0.1.3';description='Local MCP: lectura y acciones aprobadas. Sin envio.';browser_specific_settings=@{gecko=@{id=$config.extensionId;strict_min_version='147.0';update_url='https://raw.githubusercontent.com/tears-mysthrala/thunderbird-local-mcp/main/updates.json'}};background=@{page='background.html'};options_ui=@{page='diagnostics.html';open_in_tab=$true};permissions=@('alarms','storage','nativeMessaging','accountsRead','accountsFolders','messagesRead','messagesImport','messagesUpdate','messagesMove','messagesTagsList','addressBooks','compose','compose.save')}
 $manifest | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath "$project\extension\manifest.json" -Encoding utf8
 @("@echo off", ('"{0}" -u "{1}" %*' -f $PythonPath,"$project\native\host.py")) | Set-Content -LiteralPath "$runtime\host.bat" -Encoding ascii
 $hostManifest = @{name=$config.hostName;description='Thunderbird local named pipe broker';path="$runtime\host.bat";type='stdio';allowed_extensions=@($config.extensionId)}
@@ -40,5 +40,5 @@ Set-Item -Path $registry -Value "$runtime\native-manifest.json"
 & $PythonPath "$PSScriptRoot\package.py" $project
 if ($LASTEXITCODE) { throw 'Error empaquetando XPI' }
 @{mcpServers=@{thunderbird_local=@{command=(Get-Command node).Source;args=@("$project\src\server.js")}}} | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath "$runtime\mcp-client.json" -Encoding utf8
-Write-Output "Host registrado para el usuario actual. XPI: $project\dist\thunderbird-local-mcp-0.1.2.xpi"
+Write-Output "Host registrado para el usuario actual. XPI: $project\dist\thunderbird-local-mcp-0.1.3.xpi"
 Write-Output 'Instalar el XPI desde Complementos > Instalar complemento desde archivo en el perfil seleccionado.'

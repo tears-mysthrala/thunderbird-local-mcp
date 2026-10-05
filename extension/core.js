@@ -48,8 +48,11 @@ export function createBackend(api,config){
   }
  };
  function event(type,data){events.push({id:++eventId,type,...data});if(events.length>1000)events.shift();}
- api.messages.onNewMailReceived?.addListener((f,m)=>{if(config.accountIds.includes(f.accountId))event('new',{folderId:f.id,count:m.messages?.length||0});});
- for(const [name,type] of [['onMoved','moved'],['onCopied','copied'],['onDeleted','deleted']])api.messages[name]?.addListener(list=>{const scoped=(list.messages||[]).filter(m=>config.accountIds.includes(m.folder?.accountId));if(scoped.length)event(type,{messageIds:scoped.map(m=>m.id),partial:!!list.id});});
- api.messages.onUpdated?.addListener(m=>{if(config.accountIds.includes(m.folder?.accountId))event('updated',{messageId:m.id,folderId:m.folder.id});});
- return {epoch,async dispatch(method,p={}){if(!Object.hasOwn(methods,method))fail('UNSUPPORTED_METHOD');if(p.limit!==undefined&&(!Number.isInteger(p.limit)||p.limit<1||p.limit>100))fail('INVALID_PARAMETERS');if(p.profileId&&p.profileId!==config.profileId)fail('PROFILE_MISMATCH');if(method==='execute'){const next=writeQueue.then(()=>methods.execute(p));writeQueue=next.catch(()=>{});return next;}return methods[method](p);}};
+ const subscriptions=[];
+ const listen=(source,callback)=>{if(source){source.addListener(callback);subscriptions.push([source,callback]);}};
+ listen(api.messages.onNewMailReceived,(f,m)=>{if(config.accountIds.includes(f.accountId))event('new',{folderId:f.id,count:m.messages?.length||0});});
+ for(const [name,type] of [['onMoved','moved'],['onCopied','copied'],['onDeleted','deleted']])listen(api.messages[name],list=>{const scoped=(list.messages||[]).filter(m=>config.accountIds.includes(m.folder?.accountId));if(scoped.length)event(type,{messageIds:scoped.map(m=>m.id),partial:!!list.id});});
+ listen(api.messages.onUpdated,m=>{if(config.accountIds.includes(m.folder?.accountId))event('updated',{messageId:m.id,folderId:m.folder.id});});
+ function dispose(){for(const [source,callback] of subscriptions)source.removeListener?.(callback);subscriptions.length=0;for(const value of cursors.values())if(value.listId)api.messages.abortList(value.listId).catch(()=>{});cursors.clear();events.length=0;}
+ return {epoch,dispose,async dispatch(method,p={}){if(!Object.hasOwn(methods,method))fail('UNSUPPORTED_METHOD');if(p.limit!==undefined&&(!Number.isInteger(p.limit)||p.limit<1||p.limit>100))fail('INVALID_PARAMETERS');if(p.profileId&&p.profileId!==config.profileId)fail('PROFILE_MISMATCH');if(method==='execute'){const next=writeQueue.then(()=>methods.execute(p));writeQueue=next.catch(()=>{});return next;}return methods[method](p);}};
 }

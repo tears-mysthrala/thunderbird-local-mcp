@@ -1,14 +1,14 @@
 # Thunderbird Local Private MCP
 
-Versión 0.1.2. Implementación local para Windows con MailExtension MV3, Native Messaging, named pipe y cliente MCP stdio. Thunderbird conserva OAuth2, certificados y sincronización. No se leen contraseñas ni se modifican sus bases de datos.
+Versión 0.1.3. Implementación local para Windows con MailExtension MV3, Native Messaging, named pipe y cliente MCP stdio. Thunderbird conserva OAuth2, certificados y sincronización. No se leen contraseñas ni se modifican sus bases de datos.
 
 ## Estado verificado
 
-- 23 herramientas MCP; pruebas del protocolo MCP y validación de argumentos.
-- 14 pruebas Node, 4 pruebas Python y transporte real Windows con complemento simulado: PASS.
-- Dependencias npm: 0 vulnerabilidades conocidas según `npm audit --omit=dev` al 2026-10-04.
+- 24 herramientas MCP; pruebas del protocolo MCP y validación de argumentos.
+- 21 pruebas Node, 4 pruebas Python y transporte real Windows con complemento simulado: PASS.
+- Dependencias npm: 0 vulnerabilidades conocidas según `npm audit --omit=dev` al 2026-10-05.
 - Host registrado para el usuario actual; runtime protegido por ACL; XPI generado.
-- Complemento 0.1.1 activo en Thunderbird 157.0.1: conexión, cuentas/carpetas, búsquedas sin unread, lectura Gmail/Outlook y cabeceras/EML de las tres cuentas IMAP verificados. Unread y HTML-only corregidos y verificados en 0.1.1. No se han cambiado mensajes.
+- Complemento 0.1.2 activo en Thunderbird 157.0.1: conexión, cuentas/carpetas, búsquedas sin unread, lectura Gmail/Outlook y cabeceras/EML de las tres cuentas IMAP verificados. Unread y HTML-only corregidos y verificados en 0.1.1. No se han cambiado mensajes.
 
 La implementación todavía no cumple todas las pruebas de aceptación del diseño. Un complemento simulado no demuestra compatibilidad ni efectos de sincronización en Thunderbird.
 
@@ -16,7 +16,7 @@ La implementación todavía no cumple todas las pruebas de aceptación del dise�
 
 El perfil y cuentas permitidas se seleccionan explicitamente en la instalacion. Se excluye la cuenta de carpetas unificadas. El instalador vincula una instalación a un ID aleatorio y una lista explícita de cuentas. La API pública no permite demostrar la ruta del perfil en runtime: `profileBinding=installation` declara esa limitación. No copiar el XPI a otro perfil.
 
-1. En Thunderbird, abre Complementos y temas, menú de engranaje, **Instalar complemento desde archivo**. Selecciona `dist/thunderbird-local-mcp-0.1.2.xpi` y revisa los permisos. No requiere desactivar la comprobación de firmas globalmente.
+1. En Thunderbird, abre Complementos y temas, menú de engranaje, **Instalar complemento desde archivo**. Selecciona `dist/thunderbird-local-mcp-0.1.3.xpi` y revisa los permisos. No requiere desactivar la comprobación de firmas globalmente.
 2. Añade el servidor del archivo `runtime/mcp-client.json` al cliente MCP. Es configuración stdio local: no hay puerto ni túnel.
 3. Comprueba `get_status`, versión/epoch y `list_accounts` antes de operar. La ausencia del complemento devuelve `TB_CLOSED`.
 
@@ -46,11 +46,11 @@ Tras timeout, desconexión o estado `executing`/`uncertain`, reconciliar en Thun
 - Named pipe sin acceso remoto, DACL explícita del usuario y SYSTEM. Mutex por instalación. Native stdout exclusivamente protocolo, máximo 1 MiB por frame.
 - El contenido leído llega al cliente/modelo que invoca el MCP; transporte local no significa procesamiento exclusivamente local.
 - Calendario/tareas, filtros, preferencias, crear cuentas, gestión de claves, lectura offline con Thunderbird cerrado, eliminación permanente y adjuntos de composición quedan fuera de esta versión.
-- El registro Native Messaging está preparado siguiendo Mozilla; su descubrimiento por Thunderbird real sigue pendiente hasta la activación.
+- Registro Native Messaging y bootstrap comprobados en Thunderbird real con 0.1.2.
 
 ## Validación pendiente
 
-Activación 0.1.2 y canal automático; MIME/HTML/cifrado/adjuntos grandes; persistencia de unread; OAuth2 sin acceso a secretos; efectos reales de borradores/movimientos/importación; dos clientes; dos perfiles; reinicios durante escritura; denegación desde otra cuenta Windows. La prueba de ACL comprueba la construcción del descriptor, no sustituye una prueba de acceso cruzado.
+Activación 0.1.3 y transición automática; cifrado y adjuntos grandes reales; efectos reales de borradores/movimientos/importación; dos perfiles; reinicios durante escritura; denegación desde otra cuenta Windows. HTML y conservación de unread comprobados en muestras reales; cifrado fallido y bloques grandes comprobados con fixtures. La prueba de ACL comprueba la construcción del descriptor, no sustituye una prueba de acceso cruzado.
 
 ```powershell
 npm test
@@ -73,5 +73,14 @@ Documentación consultada 2026-10-04: páginas estables identificadas como 156.0
 
 Ver [canal GitHub](docs/updates.md). La version 0.1.2 recibe el scope desde el host local y no lo incluye en el paquete publico. Requiere una instalacion manual inicial para activar update_url. Actualiza solo el complemento; el host y el MCP se despliegan localmente por separado.
 
-Validacion real 0.1.1: texto/HTML, unread, cabeceras y EML en cuatro cuentas; estado read preservado en las muestras. Activacion de 0.1.2 y transicion automatica pendientes.
-\nLos contactos tienen scope independiente: addressBookIds en runtime/config.json. Sin lista explicita no se devuelven contactos/libretas. No se infiere propiedad de una libreta a partir de una cuenta IMAP.\n
+Validacion real 0.1.1: texto/HTML, unread, cabeceras y EML en cuatro cuentas; estado read preservado en las muestras. Activacion 0.1.2 verificada; transicion automatica pendiente.
+
+Los contactos tienen scope independiente: addressBookIds en runtime/config.json. Sin lista explicita no se devuelven contactos/libretas. No se infiere propiedad de una libreta a partir de una cuenta IMAP.
+
+## Diagnóstico y pruebas humanas
+
+0.1.3 registra listeners de arranque de forma síncrona y usa alarms para recuperar conexiones tras suspensión del fondo MV3. El bootstrap expira a los diez segundos; las reconexiones reutilizan el backend mientras el scope no cambia. Preferencias del complemento permite consultar estado y reconectar. `get_diagnostics` devuelve estado vivo o códigos locales sin correo ni errores nativos sin filtrar.
+
+El MCP puede registrarse con `codex mcp add thunderbird-local -- node RUTA_DEL_PROYECTO/src/server.js`. Se carga en una nueva sesión del cliente.
+
+Para probar escrituras reversibles, ejecutar en una consola humana `node scripts/test-local-writes.js ID_CARPETA_PADRE_LOCAL`. Crea una carpeta de prueba vacía, la renombra y la elimina; cada paso muestra un plan exacto y exige aprobación independiente. No ejecutarlo mediante el agente. Si se interrumpe, revisar la carpeta de prueba antes de repetir. No prueba mensajes ni sincronización IMAP.

@@ -24,6 +24,16 @@ def connection(path,timeout=5):
 
 from framing import encode, receive
 
+def native_status(code):
+    try:
+        config_path=pathlib.Path(os.environ.get('THUNDERBIRD_MCP_CONFIG',str(pathlib.Path(__file__).parents[1]/'runtime/config.json')))
+        status_path=config_path.parent/'native-status.json'
+        temp=status_path.with_name('native-status-'+str(uuid.uuid4())+'.tmp')
+        temp.write_text(json.dumps({'code':code,'changedAt':int(time.time()*1000)}),encoding='utf-8')
+        os.replace(temp,status_path)
+    except OSError:pass
+
+
 K = C.WinDLL('kernel32', use_last_error=True)
 A = C.WinDLL('advapi32', use_last_error=True)
 INVALID = C.c_void_p(-1).value
@@ -89,7 +99,8 @@ def pipe_write(handle,data):
         offset += count.value
 
 class Broker:
-    def __init__(self, config, output):
+    def __init__(self, config, output, report=lambda code:None):
+        self.report = report
         self.config = config
         self.output = output
         self.lock = threading.Lock()
@@ -111,6 +122,7 @@ class Broker:
                 return
             self.ready = True
             self.epoch = message.get('epoch')
+            self.report('CONNECTED')
             return
         with self.pending_lock:
             waiter = self.pending.get(message.get('id'))
@@ -203,13 +215,15 @@ def main():
     mutex = K.CreateMutexW(C.byref(attrs),False,'Local\\ThunderbirdMCP-'+config['profileId'])
     if not mutex or C.get_last_error() == 183:
         raise RuntimeError('BROKER_ALREADY_RUNNING')
-    broker = Broker(config,sys.stdout.buffer)
+    native_status('WAITING_FOR_ADDON')
+    broker = Broker(config,sys.stdout.buffer,native_status)
     def reader():
         try:
             while True:
                 broker.accept_native(receive(sys.stdin.buffer.read))
         except (EOFError,ValueError):
             broker.stopped.set()
+            native_status('ADDON_DISCONNECTED')
             os._exit(0) # All pipe handles close; outstanding writes remain uncertain in MCP store.
     threading.Thread(target=reader,daemon=True).start()
     while not broker.stopped.is_set():
@@ -227,7 +241,10 @@ def main():
 if __name__ == '__main__':
     try:
         main()
-    except Exception:
+    except Exception as error:
+        code=str(error)
+        if code not in {'EXTENSION_MISMATCH','BROKER_ALREADY_RUNNING','PIPE_FAILED'}:code='NATIVE_START_FAILED'
+        native_status(code)
         # Never include native messages, usernames, credentials or mail in diagnostics.
         sys.stderr.write('Thunderbird MCP native host failed\n')
         sys.exit(1)
